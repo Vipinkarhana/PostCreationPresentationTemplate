@@ -13,8 +13,8 @@ interface PostProps {
       isOnline?: boolean;
     };
     timestamp: string;
-    content: string;
-    tags?: string[];
+    content: string | { title: string; text: string } | any;
+    tags?: (string | any)[];
     attachments?: Array<{
       type: "image" | "file" | "link";
       name: string;
@@ -49,6 +49,46 @@ interface PostProps {
 }
 
 export default function PostCard({ post }: PostProps) {
+  console.log("🔍 DEBUG: PostCard received post:", post);
+  // Safety check: ensure post has required properties
+  if (!post || !post.author) {
+    return null;
+  }
+
+  // Debug logging to identify problematic data
+  if (typeof post.content === "object" && post.content !== null) {
+    console.log("PostCard received object content:", post.content);
+    console.log("Full post object:", post);
+  }
+  if (post.tags && post.tags.some((tag: any) => typeof tag === "object")) {
+    console.log(
+      "PostCard received object tags:",
+      post.tags.filter((tag: any) => typeof tag === "object")
+    );
+  }
+
+  // Additional safety check for nested objects
+  const safeStringify = (obj: any): string => {
+    if (typeof obj === "string") return obj;
+    if (typeof obj === "number") return obj.toString();
+    if (typeof obj === "boolean") return obj.toString();
+    if (obj === null || obj === undefined) return "";
+    if (typeof obj === "object") {
+      console.log("🔍 DEBUG: Found object in safeStringify:", obj);
+      if (Array.isArray(obj)) {
+        return obj.map((item) => safeStringify(item)).join(", ");
+      }
+      if (obj.title && obj.text) return `${obj.title}: ${obj.text}`;
+      if (obj.title) return safeStringify(obj.title);
+      if (obj.text) return safeStringify(obj.text);
+      if (obj.name) return safeStringify(obj.name);
+      if (obj.content) return safeStringify(obj.content);
+      // Fallback for other object types
+      return JSON.stringify(obj);
+    }
+    return String(obj);
+  };
+
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked || false);
   const [showComments, setShowComments] = useState(false);
@@ -89,6 +129,34 @@ export default function PostCard({ post }: PostProps) {
 
   const typeConfig = getPostTypeConfig(post.type);
 
+  // Safe content renderer to prevent object rendering errors
+  const renderContent = (content: any): string => {
+    console.log(
+      "🔍 DEBUG: renderContent called with:",
+      content,
+      "Type:",
+      typeof content
+    );
+
+    if (typeof content === "string") {
+      return content;
+    }
+    if (typeof content === "object" && content !== null) {
+      console.log(
+        "🔍 DEBUG: Content is object with keys:",
+        Object.keys(content)
+      );
+
+      if (content.title && content.text) {
+        return `${content.title}: ${content.text}`;
+      }
+      if (content.title) return safeStringify(content.title);
+      if (content.text) return safeStringify(content.text);
+      return JSON.stringify(content);
+    }
+    return "No content available";
+  };
+
   const handleLike = () => {
     setIsLiked(!isLiked);
     // API call would go here
@@ -107,17 +175,20 @@ export default function PostCard({ post }: PostProps) {
           <div className="relative">
             <img
               className="w-12 h-12 rounded-full"
-              src={post.author.avatar}
-              alt={post.author.name}
+              src={
+                post.author?.avatar ||
+                "https://via.placeholder.com/48x48/e5e7eb/6b7280?text=U"
+              }
+              alt={post.author?.name || "User"}
             />
-            {post.author.isOnline && (
+            {post.author?.isOnline && (
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
             )}
           </div>
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">
               <h3 className="font-semibold text-gray-900">
-                {post.author.name}
+                {post.author?.name || "Unknown User"}
               </h3>
               <span
                 className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeConfig.color}`}
@@ -126,8 +197,12 @@ export default function PostCard({ post }: PostProps) {
                 {typeConfig.label}
               </span>
             </div>
-            <p className="text-sm text-gray-600">{post.author.title}</p>
-            <p className="text-xs text-gray-500">{post.timestamp}</p>
+            <p className="text-sm text-gray-600">
+              {post.author?.title || "User"}
+            </p>
+            <p className="text-xs text-gray-500">
+              {post.timestamp || "Unknown time"}
+            </p>
           </div>
         </div>
 
@@ -153,29 +228,34 @@ export default function PostCard({ post }: PostProps) {
 
       {/* Post Content */}
       <div className="mb-4">
-        <p className="text-gray-900 leading-relaxed">{post.content}</p>
+        <p className="text-gray-900 leading-relaxed">
+          {safeStringify(renderContent(post.content))}
+        </p>
       </div>
 
       {/* Tags */}
-      {post.tags && post.tags.length > 0 && (
+      {post.tags && Array.isArray(post.tags) && post.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
-          {post.tags.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"
-            >
-              #{tag}
-            </span>
-          ))}
+          {post.tags.map((tag: any, index: number) => {
+            const tagStr = safeStringify(tag);
+            return (
+              <span
+                key={`${post.id}-tag-${tagStr}-${index}`}
+                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"
+              >
+                #{tagStr}
+              </span>
+            );
+          })}
         </div>
       )}
 
       {/* Attachments */}
       {post.attachments && post.attachments.length > 0 && (
         <div className="mb-4 space-y-2">
-          {post.attachments.map((attachment, index) => (
+          {post.attachments.map((attachment: any, index: number) => (
             <div
-              key={index}
+              key={`${post.id}-attachment-${index}-${attachment.name}`}
               className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
             >
               <div className="flex-shrink-0">
@@ -226,7 +306,7 @@ export default function PostCard({ post }: PostProps) {
                 )}
               </div>
               <span className="text-sm text-gray-700 truncate">
-                {attachment.name}
+                {safeStringify(attachment.name)}
               </span>
             </div>
           ))}
@@ -256,7 +336,7 @@ export default function PostCard({ post }: PostProps) {
                   </svg>
                 </div>
                 <h3 className="font-semibold text-gray-900">
-                  {post.presentation.title}
+                  {safeStringify(post.presentation.title)}
                 </h3>
                 <span className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 text-white rounded-full text-xs font-medium">
                   🎭 {post.presentation.slides.length} slides
@@ -273,10 +353,11 @@ export default function PostCard({ post }: PostProps) {
               <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
                 <div className="text-center">
                   <h4 className="text-lg font-bold text-gray-900 mb-2">
-                    {post.presentation.slides[0]?.title || "Presentation Title"}
+                    {safeStringify(post.presentation.slides[0]?.title) ||
+                      "Presentation Title"}
                   </h4>
                   <p className="text-gray-600 text-sm max-w-md">
-                    {post.presentation.slides[0]?.content ||
+                    {safeStringify(post.presentation.slides[0]?.content) ||
                       "Presentation content preview..."}
                   </p>
                   {post.presentation.slides[0]?.bulletPoints &&
@@ -285,10 +366,18 @@ export default function PostCard({ post }: PostProps) {
                         <ul className="text-sm text-gray-700 space-y-1">
                           {post.presentation.slides[0].bulletPoints
                             .slice(0, 3)
-                            .map((point, index) => (
-                              <li key={index} className="flex items-center">
+                            .map((point: any, index: number) => (
+                              <li
+                                key={`${
+                                  post.id
+                                }-bullet-${index}-${safeStringify(point).slice(
+                                  0,
+                                  20
+                                )}`}
+                                className="flex items-center"
+                              >
                                 <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-2"></div>
-                                {point}
+                                {safeStringify(point)}
                               </li>
                             ))}
                         </ul>
@@ -300,14 +389,16 @@ export default function PostCard({ post }: PostProps) {
               {/* Slide Navigation */}
               <div className="p-3 bg-gray-50 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  {post.presentation.slides.slice(0, 5).map((_, index) => (
-                    <div
-                      key={index}
-                      className={`w-2 h-2 rounded-full ${
-                        index === 0 ? "bg-indigo-500" : "bg-gray-300"
-                      }`}
-                    ></div>
-                  ))}
+                  {post.presentation.slides
+                    .slice(0, 5)
+                    .map((slide: any, index: number) => (
+                      <div
+                        key={`${post.id}-slide-indicator-${slide.id || index}`}
+                        className={`w-2 h-2 rounded-full ${
+                          index === 0 ? "bg-indigo-500" : "bg-gray-300"
+                        }`}
+                      ></div>
+                    ))}
                   {post.presentation.slides.length > 5 && (
                     <span className="text-xs text-gray-500 ml-1">
                       +{post.presentation.slides.length - 5} more
@@ -462,7 +553,7 @@ export default function PostCard({ post }: PostProps) {
             <div className="flex space-x-3">
               <img
                 className="w-8 h-8 rounded-full"
-                src="/api/placeholder/32/32"
+                src="https://via.placeholder.com/32x32/e5e7eb/6b7280?text=U"
                 alt="Your avatar"
               />
               <div className="flex-1">
@@ -479,7 +570,7 @@ export default function PostCard({ post }: PostProps) {
               <div className="flex space-x-3">
                 <img
                   className="w-8 h-8 rounded-full"
-                  src="/api/placeholder/32/32"
+                  src="https://via.placeholder.com/32x32/e5e7eb/6b7280?text=U"
                   alt="Commenter"
                 />
                 <div className="flex-1">

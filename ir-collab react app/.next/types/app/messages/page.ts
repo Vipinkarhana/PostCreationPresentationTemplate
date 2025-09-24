@@ -1,4 +1,4 @@
-// File: D:\D. W\Client list\ir-collab react app\src\app\messages\page.tsx
+// File: D:\D. W\Client list\PostCreationPresentationTemplate\ir-collab react app\src\app\messages\page.tsx
 import * as entry from '../../../../src/app/messages/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

@@ -16,7 +16,7 @@ const samplePosts = [
     author: {
       name: "Dr. Emily Zhang",
       title: "Data Science Researcher at MIT",
-      avatar: "/api/placeholder/48/48",
+      avatar: "https://via.placeholder.com/48x48/e5e7eb/6b7280?text=U",
       isOnline: true,
     },
     timestamp: "30 minutes ago",
@@ -117,7 +117,7 @@ const samplePosts = [
     author: {
       name: "Dr. Sarah Chen",
       title: "AI Researcher at Stanford University",
-      avatar: "/api/placeholder/48/48",
+      avatar: "https://via.placeholder.com/48x48/e5e7eb/6b7280?text=U",
       isOnline: true,
     },
     timestamp: "2 hours ago",
@@ -156,7 +156,7 @@ const samplePosts = [
     author: {
       name: "Prof. Michael Johnson",
       title: "Climate Scientist at MIT",
-      avatar: "/api/placeholder/48/48",
+      avatar: "https://via.placeholder.com/48x48/e5e7eb/6b7280?text=U",
       isOnline: false,
     },
     timestamp: "4 hours ago",
@@ -183,7 +183,7 @@ const samplePosts = [
     author: {
       name: "Dr. Lisa Wang",
       title: "Biotech Engineer at UCSF",
-      avatar: "/api/placeholder/48/48",
+      avatar: "https://via.placeholder.com/48x48/e5e7eb/6b7280?text=U",
       isOnline: true,
     },
     timestamp: "6 hours ago",
@@ -212,7 +212,7 @@ const samplePosts = [
     author: {
       name: "Dr. Robert Kim",
       title: "Physics Professor at Caltech",
-      avatar: "/api/placeholder/48/48",
+      avatar: "https://via.placeholder.com/48x48/e5e7eb/6b7280?text=U",
       isOnline: false,
     },
     timestamp: "1 day ago",
@@ -237,7 +237,7 @@ const samplePosts = [
 
 const sampleUser = {
   name: "Dr. Alex Thompson",
-  avatar: "/api/placeholder/48/48",
+  avatar: "https://via.placeholder.com/48x48/e5e7eb/6b7280?text=U",
   notifications: 3,
 };
 
@@ -245,7 +245,27 @@ export default function HomeFeeds() {
   const [posts, setPosts] = useState(samplePosts);
 
   const handlePostCreated = (newPost: any) => {
-    setPosts([newPost, ...posts]);
+    // Ensure the new post has a unique ID and required fields
+    const postWithId = {
+      ...newPost,
+      id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      author: newPost.author || {
+        name: "Current User",
+        title: "Content Creator",
+        avatar: "https://via.placeholder.com/48x48/e5e7eb/6b7280?text=U",
+        isOnline: true,
+      },
+      timestamp: newPost.timestamp || "Just now",
+      metrics: newPost.metrics || {
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        views: 1,
+      },
+      isLiked: false,
+      isBookmarked: false,
+    };
+    setPosts([postWithId, ...posts]);
   };
 
   return (
@@ -271,8 +291,8 @@ export default function HomeFeeds() {
 
             {/* Posts Feed */}
             <div className="space-y-6">
-              {posts.map((post) => (
-                <PostCard key={post.id} post={post} />
+              {posts.map((post, index) => (
+                <PostCard key={post.id || `post-${index}`} post={post} />
               ))}
             </div>
 
